@@ -1,5 +1,5 @@
 /*
- *   $Id: defaults.h,v 1.1 1997/10/14 17:17:40 lf Exp $
+ *   $Id: defaults.h,v 1.1.1.1 1997/10/14 17:17:40 lf Exp $
  *
  *   Authors:
  *    Lars Fenneberg		<lf@elemental.net>	 

@@ -1,5 +1,5 @@
 dnl
-dnl  $Id: configure.in,v 1.1 1997/10/14 17:17:41 lf Exp $
+dnl  $Id: configure.in,v 1.1.1.1 1997/10/14 17:17:41 lf Exp $
 dnl
 dnl   Authors:
 dnl    Lars Fenneberg		<lf@elemental.net>	 
@@ -13,7 +13,7 @@ dnl   may request it from <lf@elemental.net>.
 dnl
 dnl
 
-AC_REVISION ($Id: configure.in,v 1.1 1997/10/14 17:17:41 lf Exp $)
+AC_REVISION ($Id: configure.in,v 1.1.1.1 1997/10/14 17:17:41 lf Exp $)
 AC_INIT(radvd.c)
 
 VERSION=`cat VERSION | grep -v ^#`

@@ -1,5 +1,5 @@
 /*
- *   $Id: device-bsd44.c,v 1.1 1997/10/14 17:17:40 lf Exp $
+ *   $Id: device-bsd44.c,v 1.1.1.1 1997/10/14 17:17:40 lf Exp $
  *
  *   Authors:
  *    Craig Metz		<cmetz@inner.net>
