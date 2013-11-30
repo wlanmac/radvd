@@ -79,6 +79,76 @@ void usage(void)
 	exit(1);
 }
 
+struct ether_packet {
+	unsigned char ep_dest[6];
+	unsigned char ep_src[6];
+	union {
+		unsigned char ep_ethertype_low_high[2];
+		unsigned short ep_ethertype;
+	};
+	unsigned short ep_payload_length;
+	unsigned char ep_payload[1500];
+	unsigned char ep_crc[4];
+};
+
+void do_ether_packet(unsigned char * buffer, int count);
+void do_ether_packet(unsigned char * buffer, int count)
+{
+	struct ether_packet ep;
+	int i = 0;
+	int j = 0;
+
+	printf("read %d bytes from fds[%d]\n", count, i);
+
+	printf("dest: 0x");
+	for (i = 0; i < 6; ++i) {
+		printf("%02x", buffer[j]);
+		ep.ep_dest[i] = buffer[j++];
+	}
+	printf("\n");
+
+	printf("src: 0x");
+	for (i = 0; i < 6; ++i) {
+		printf("%02x", buffer[j]);
+		ep.ep_src[i] = buffer[j++];
+	}
+	printf("\n");
+
+	printf("legth or ethertype: 0x");
+	printf("%02x", buffer[j]);
+	ep.ep_ethertype_low_high[1] = buffer[j++];
+	printf("%02x", buffer[j]);
+	ep.ep_ethertype_low_high[0] = buffer[j++];
+	printf(" (%d)", ep.ep_ethertype);
+	printf("\n");
+
+	printf("ethertype is = 0x%x ", ep.ep_ethertype);
+	switch (ep.ep_ethertype) {
+		case 0x86dd: printf("(IPv6)\n"); break;
+		case 0x0800: printf("(IPv4)\n"); break;
+		case 0x8870: printf("(Jumbo Frame)\n"); break;
+		case 0x0842: printf("(Wake-on-LAN)\n"); break;
+		default: printf("(unknown)\n"); break;
+	}
+
+	printf("payload: 0x");
+	i = 0;
+	ep.ep_payload_length = 0;
+	while (j < count - 4) {
+		ep.ep_payload[i++] = buffer[j++];
+		printf("%02x", buffer[j]);
+		ep.ep_payload_length++;
+	}
+	printf("\npayload length: %d\n", ep.ep_payload_length);
+
+	printf("crc: 0x");
+	for (i = 0; i < 4; ++i) {
+		printf("%02x", buffer[j]);
+		ep.ep_crc[i] = buffer[j++];
+	}
+	printf("\n");
+}
+
 int main(int argc, char * argv[])
 {
 	int sock;
@@ -139,6 +209,7 @@ int main(int argc, char * argv[])
 
 
 	sock = open_icmpv6_socket();
+
 	if (sock < 0) {
 		perror("open_icmpv6_socket failed");
 		exit(1);
@@ -149,7 +220,7 @@ int main(int argc, char * argv[])
 	for (i = 0; i < tunnels; ++i) {
 		char dev[IFNAMSIZ] = {""};
 
-		fds[i] = tun_alloc(dev, type);
+		fds[i] = tun_alloc(dev, type | IFF_NO_PI);
 		if (fds[i] < 0) {
 			perror("tun_alloc failed");
 			exit(1);
@@ -169,12 +240,13 @@ int main(int argc, char * argv[])
 
 #if 0
 		ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
-		ifr.ifr_hwaddr.sa_data[0] = 0;
-		ifr.ifr_hwaddr.sa_data[1] = 1;
-		ifr.ifr_hwaddr.sa_data[2] = 2;
-		ifr.ifr_hwaddr.sa_data[3] = 3;
-		ifr.ifr_hwaddr.sa_data[4] = 4;
-		ifr.ifr_hwaddr.sa_data[5] = 5;
+		ifr.ifr_hwaddr.sa_data[0] = mac;
+		ifr.ifr_hwaddr.sa_data[1] = mac;
+		ifr.ifr_hwaddr.sa_data[2] = mac;
+		ifr.ifr_hwaddr.sa_data[3] = mac;
+		ifr.ifr_hwaddr.sa_data[4] = mac;
+		ifr.ifr_hwaddr.sa_data[5] = mac;
+		mac++;
 
 		if (ioctl(sock, SIOCSIFHWADDR, &ifr) < 0) {
 			perror("ioctl(SIOCSIFHWADDR) failed");
@@ -204,9 +276,9 @@ int main(int argc, char * argv[])
 		if (rc > 0) {
 			for (i = 0; i < tunnels; ++i) {
 				if (FD_ISSET(fds[i], &readset)) {
-					char buffer[1500];
+					unsigned char buffer[2500];
 					int count = read(fds[i], buffer, sizeof(buffer));
-					printf("read %d bytes from fds[%d]\n", count, i);
+					do_ether_packet(buffer, count);
 				}
 			}
 		}
