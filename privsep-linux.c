@@ -57,8 +57,6 @@ privsep_read_loop(void)
 			} else {
 				flog(LOG_ERR, "Exiting, privsep_read_loop had readn return 0 bytes");
 			}
-			close(pfd);
-			_exit(0);
 		}
 		if (ret != sizeof(cmd)) {
 			/* Short read, ignore */
