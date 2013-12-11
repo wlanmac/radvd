@@ -35,9 +35,13 @@ process(int sock, struct Interface *ifacel, unsigned char *msg, int len,
 
 	print_addr(&addr->sin6_addr, addr_str);
 
+	if_indextoname(pkt_info->ipi6_ifindex, if_name);
+	dlog(LOG_DEBUG, 2, "received packet on interface: %d %s",
+		pkt_info->ipi6_ifindex, if_name);
+
 	if ( ! pkt_info )
 	{
-		flog(LOG_WARNING, "received packet with no pkt_info from %s!", addr_str );
+		flog(LOG_WARNING, "received packet with no pkt_info from %s!", addr_str);
 		return;
 	}
 
@@ -95,25 +99,18 @@ process(int sock, struct Interface *ifacel, unsigned char *msg, int len,
 		return;
 	}
 
-	dlog(LOG_DEBUG, 4, "if_index %u", pkt_info->ipi6_ifindex);
-
 	/* get iface by received if_index */
 	/* TODO: This is a great place to use a hash table */
-	for (iface = ifacel; iface; iface=iface->next)
+	for (iface = ifacel; iface; iface = iface->next)
 	{
 		if (iface->if_index == pkt_info->ipi6_ifindex)
 		{
-			if_indextoname(pkt_info->ipi6_ifindex, if_name);
 			break;
 		}
 	}
 
 	if (iface == NULL)
 	{
-		char name[IF_NAMESIZE];
-		if_indextoname(pkt_info->ipi6_ifindex, name);
-		dlog(LOG_DEBUG, 2, "received packet from unknown interface: %d %s",
-			pkt_info->ipi6_ifindex, name);
 		return;
 	}
 
@@ -124,14 +121,6 @@ process(int sock, struct Interface *ifacel, unsigned char *msg, int len,
 			hoplimit, addr_str);
 		return;
 	}
-
-	if (!iface->AdvSendAdvert)
-	{
-		dlog(LOG_DEBUG, 2, "AdvSendAdvert is off for %s", iface->Name);
-		return;
-	}
-
-	dlog(LOG_DEBUG, 4, "found Interface: %s", iface->Name);
 
 	if (icmph->icmp6_type == ND_ROUTER_SOLICIT)
 	{
