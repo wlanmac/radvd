@@ -26,7 +26,6 @@
 #include <libdaemon/dfork.h>
 #include <libdaemon/dpid.h>
 
-struct Interface *IfaceList = NULL;
 
 #ifdef HAVE_GETOPT_LONG
 
@@ -79,12 +78,9 @@ char usage_str[] =
 
 #endif
 
-extern FILE *yyin;
-
 char *conf_file = NULL;
 char *pidfile = NULL;
 char *pname;
-int sock = -1;
 #ifdef HAVE_NETLINK
 int disablenetlink = 0;
 #endif
@@ -99,21 +95,26 @@ void sighup_handler(int sig);
 void sigterm_handler(int sig);
 void sigint_handler(int sig);
 void sigusr1_handler(int sig);
-void timer_handler(void *data);
-void config_interface(void);
-void kickoff_adverts(void);
-void stop_adverts(void);
+void timer_handler(int sock, void *data);
+void config_interface(struct Interface * IfaceList);
+void kickoff_adverts(int sock, struct Interface * IfaceList);
+void stop_adverts(int sock, struct Interface * IfaceList);
 void version(void);
 void usage(void);
 int drop_root_privileges(const char *);
-int readin_config(char *);
+struct Interface * readin_config(char *);
 int check_conffile_perm(const char *, const char *);
 const char *get_pidfile(void);
-void main_loop(void);
+void main_loop(int sock, struct Interface *IfaceList);
+struct Interface * reload_config(int sock, struct Interface * IfaceList);
+void reset_prefix_lifetimes(struct Interface * IfaceList);
+void check_ifaces(int sock, struct Interface * IfaceList);
 
 int
 main(int argc, char *argv[])
 {
+struct Interface *IfaceList = NULL;
+int sock = -1;
 	int c, log_method;
 	char *logfile;
 	int facility;
@@ -245,6 +246,7 @@ main(int argc, char *argv[])
 	}
 
 	if (configtest) {
+		set_debuglevel(1);
 		log_method = L_STDERR;
 	}
 
@@ -255,13 +257,6 @@ main(int argc, char *argv[])
 
 	if (!configtest) {
 		flog(LOG_INFO, "version %s started", VERSION);
-	}
-
-	/* get a raw socket for sending and receiving ICMPv6 messages */
-	sock = open_icmpv6_socket();
-	if (sock < 0) {
-		perror("open_icmpv6_socket");
-		exit(1);
 	}
 
 	/* check that 'other' cannot write the file
@@ -276,21 +271,29 @@ main(int argc, char *argv[])
 			flog(LOG_WARNING, "Insecure file permissions, but continuing anyway");
 	}
 
+	/* parse config file */
+	if ((IfaceList = readin_config(conf_file)) == 0) {
+		flog(LOG_ERR, "Exiting, failed to read config file.\n");
+		exit(1);
+	}
+
+	dlog(LOG_DEBUG, 1, "config file syntax ok.");
+	if (configtest) {
+		exit(0);
+	}
+
+	/* get a raw socket for sending and receiving ICMPv6 messages */
+	sock = open_icmpv6_socket();
+	if (sock < 0) {
+		perror("open_icmpv6_socket");
+		exit(1);
+	}
+
 	/* if we know how to do it, check whether forwarding is enabled */
 	if (check_ip6_forwarding()) {
 		flog(LOG_WARNING, "IPv6 forwarding seems to be disabled, but continuing anyway.");
 	}
 
-	/* parse config file */
-	if (readin_config(conf_file) < 0) {
-		flog(LOG_ERR, "Exiting, failed to read config file.\n");
-		exit(1);
-	}
-
-	if (configtest) {
-		fprintf(stderr, "Syntax OK\n");
-		exit(0);
-	}
 
 #ifdef USE_PRIVSEP
 	dlog(LOG_DEBUG, 3, "Initializing privsep");
@@ -361,11 +364,12 @@ main(int argc, char *argv[])
 	signal(SIGINT, sigint_handler);
 	signal(SIGUSR1, sigusr1_handler);
 
-	config_interface();
-	kickoff_adverts();
-	main_loop();
+	check_ifaces(sock, IfaceList);
+	config_interface(IfaceList);
+	kickoff_adverts(sock, IfaceList);
+	main_loop(sock, IfaceList);
 	flog(LOG_INFO, "sending stop adverts", pidfile);
-	stop_adverts();
+	stop_adverts(sock, IfaceList);
 	if (daemonize) {
 		flog(LOG_INFO, "removing %s", pidfile);
 		unlink(pidfile);
@@ -379,7 +383,7 @@ const char *get_pidfile(void) {
 	return pidfile;
 }
 
-void main_loop(void)
+void main_loop(int sock, struct Interface * IfaceList)
 {
 	struct pollfd fds[2];
 
@@ -437,9 +441,9 @@ void main_loop(void)
 				struct in6_pktinfo *pkt_info = NULL;
 				unsigned char msg[MSG_SIZE_RECV];
 
-				len = recv_rs_ra(msg, &rcv_addr, &pkt_info, &hoplimit);
+				len = recv_rs_ra(sock, msg, &rcv_addr, &pkt_info, &hoplimit);
 				if (len > 0) {
-					process(IfaceList, msg, len,
+					process(sock, IfaceList, msg, len,
 						&rcv_addr, pkt_info, hoplimit);
 				}
 			}
@@ -448,14 +452,17 @@ void main_loop(void)
 				if (fds[1].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 					flog(LOG_WARNING, "socket error on fds[1].fd");
 				} else if (fds[1].revents & POLLIN) {
-					process_netlink_msg(fds[1].fd);
+					int rc = process_netlink_msg(fds[1].fd);
+					if (rc > 0) {
+						IfaceList = reload_config(sock, IfaceList);
+					}
 				}
 			}
 #endif
 		}
 		else if ( rc == 0 ) {
 			if (next)
-				timer_handler(next);
+				timer_handler(sock, next);
 		}
 		else if ( rc == -1 ) {
 			dlog(LOG_INFO, 3, "poll returned early: %s", strerror(errno));
@@ -469,14 +476,14 @@ void main_loop(void)
 		if (sighup_received)
 		{
 			dlog(LOG_INFO, 3, "sig hup received.\n");
-			reload_config();
+			IfaceList = reload_config(sock, IfaceList);
 			sighup_received = 0;
 		}
 
 		if (sigusr1_received)
 		{
 			dlog(LOG_INFO, 3, "sig usr1 received.\n");
-			reset_prefix_lifetimes();
+			reset_prefix_lifetimes(IfaceList);
 			sigusr1_received = 0;
 		}
 
@@ -484,14 +491,14 @@ void main_loop(void)
 }
 
 void
-timer_handler(void *data)
+timer_handler(int sock, void *data)
 {
 	struct Interface *iface = (struct Interface *) data;
 	double next;
 
 	dlog(LOG_DEBUG, 4, "timer_handler called for %s", iface->Name);
 
-	if (send_ra_forall(iface, NULL) != 0) {
+	if (send_ra_forall(sock, iface, NULL) != 0) {
 		return;
 	}
 
@@ -507,7 +514,7 @@ timer_handler(void *data)
 }
 
 void
-config_interface(void)
+config_interface(struct Interface * IfaceList)
 {
 	struct Interface *iface;
 	for(iface=IfaceList; iface; iface=iface->next)
@@ -524,7 +531,7 @@ config_interface(void)
 }
 
 void
-kickoff_adverts(void)
+kickoff_adverts(int sock, struct Interface * IfaceList)
 {
 	struct Interface *iface;
 
@@ -549,7 +556,7 @@ kickoff_adverts(void)
 			continue;
 
 		/* send an initial advertisement */
-		if (send_ra_forall(iface, NULL) == 0) {
+		if (send_ra_forall(sock, iface, NULL) == 0) {
 
 			iface->init_racount++;
 
@@ -560,7 +567,7 @@ kickoff_adverts(void)
 }
 
 void
-stop_adverts(void)
+stop_adverts(int sock, struct Interface * IfaceList)
 {
 	struct Interface *iface;
 
@@ -573,20 +580,67 @@ stop_adverts(void)
 			/* TODO: AdvSendAdvert is being checked in send_ra now so it can be removed here. */
 			if (iface->AdvSendAdvert) {
 				/* send a final advertisement with zero Router Lifetime */
+				dlog(LOG_DEBUG, 4, "stopping all adverts on %s.", iface->Name);
 				iface->cease_adv = 1;
-				send_ra_forall(iface, NULL);
+				send_ra_forall(sock, iface, NULL);
 			}
 		}
 	}
 }
 
-void reload_config(void)
+void check_ifaces(int sock, struct Interface * IfaceList)
 {
+
 	struct Interface *iface;
+	for (iface=IfaceList; iface; iface=iface->next) {
+		if (check_device(sock, iface) < 0) {
+			if (iface->IgnoreIfMissing) {
+				dlog(LOG_DEBUG, 4, "interface %s did not exist, ignoring the interface", iface->Name);
+			}
+			else {
+				flog(LOG_ERR, "interface %s does not exist", iface->Name);
+				exit(1);
+			}
+		}
+
+		if (update_device_info(sock, iface) < 0){
+			if (!iface->IgnoreIfMissing){
+				flog(LOG_ERR, "interface %s does not exist", iface->Name);
+				exit(1);
+			}
+		}
+
+		if (check_iface(iface) < 0){
+			if (!iface->IgnoreIfMissing){
+				flog(LOG_ERR, "interface %s does not exist", iface->Name);
+				exit(1);
+			}
+		}
+
+		if (setup_linklocal_addr(iface) < 0){
+			if (!iface->IgnoreIfMissing){
+				flog(LOG_ERR, "interface %s does not exist", iface->Name);
+				exit(1);
+			}
+		}
+
+		if (setup_allrouters_membership(sock, iface) < 0){
+			if (!iface->IgnoreIfMissing){
+				flog(LOG_ERR, "interface %s does not exist", iface->Name);
+				exit(1);
+			}
+		}
+
+		dlog(LOG_DEBUG, 4, "interface definition for %s is ok", iface->Name);
+	}
+}
+
+struct Interface * reload_config(int sock, struct Interface * IfaceList)
+{
+	struct Interface *iface = IfaceList;
 
 	flog(LOG_INFO, "attempting to reread config file");
 
-	iface=IfaceList;
 	while(iface)
 	{
 		struct Interface *next_iface = iface->next;
@@ -645,16 +699,19 @@ void reload_config(void)
 	IfaceList = NULL;
 
 	/* reread config file */
-	if (readin_config(conf_file) < 0) {
+	if ((IfaceList = readin_config(conf_file)) == 0) {
 		perror("readin_config failed.");
 		exit(1);
 	}
+	check_ifaces(sock, IfaceList);
 
 	/* XXX: fails due to lack of permissions with non-root user */
-	config_interface();
-	kickoff_adverts();
+	config_interface(IfaceList);
+	kickoff_adverts(sock, IfaceList);
 
 	flog(LOG_INFO, "resuming normal operation");
+
+	return IfaceList;
 }
 
 void
@@ -700,7 +757,7 @@ void sigusr1_handler(int sig)
 	sigusr1_received = 1;
 }
 
-void reset_prefix_lifetimes(void)
+void reset_prefix_lifetimes(struct Interface * IfaceList)
 {
 	struct Interface *iface;
 	struct AdvPrefix *prefix;
@@ -846,25 +903,6 @@ check_ip6_forwarding(void)
 #endif /* __linux__ */
 
 	return(0);
-}
-
-int
-readin_config(char *fname)
-{
-	if ((yyin = fopen(fname, "r")) == NULL)
-	{
-		flog(LOG_ERR, "can't open %s: %s", fname, strerror(errno));
-		return (-1);
-	}
-
-	if (yyparse() != 0)
-	{
-		flog(LOG_ERR, "error parsing or activating the config file: %s", fname);
-		return (-1);
-	}
-
-	fclose(yyin);
-	return 0;
 }
 
 void

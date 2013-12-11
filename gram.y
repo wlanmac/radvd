@@ -18,7 +18,7 @@
 #include "radvd.h"
 #include "defaults.h"
 
-extern struct Interface *IfaceList;
+static struct Interface *IfaceList = NULL;
 struct Interface *iface = NULL;
 struct AdvPrefix *prefix = NULL;
 struct AdvRoute *route = NULL;
@@ -167,31 +167,6 @@ ifacedef	: ifacehead '{' ifaceparams  '}' ';'
 				}
 				iface2 = iface2->next;
 			}
-
-			if (check_device(iface) < 0) {
-				if (iface->IgnoreIfMissing) {
-					dlog(LOG_DEBUG, 4, "interface %s did not exist, ignoring the interface", iface->Name);
-				}
-				else {
-					flog(LOG_ERR, "interface %s does not exist", iface->Name);
-					ABORT;
-				}
-			}
-			if (update_device_info(iface) < 0)
-				if (!iface->IgnoreIfMissing)
-				ABORT;
-			if (check_iface(iface) < 0)
-				if (!iface->IgnoreIfMissing)
-				ABORT;
-			if (setup_linklocal_addr(iface) < 0)
-				if (!iface->IgnoreIfMissing)
-				ABORT;
-			if (setup_allrouters_membership(iface) < 0)
-				if (!iface->IgnoreIfMissing)
-				ABORT;
-
-			dlog(LOG_DEBUG, 4, "interface definition for %s is ok", iface->Name);
-
 			iface->next = IfaceList;
 			IfaceList = iface;
 
@@ -983,3 +958,26 @@ yyerror(char *msg)
 	cleanup();
 	flog(LOG_ERR, "%s in %s, line %d: %s", msg, conf_file, num_lines, yytext);
 }
+
+extern FILE * yyin;
+
+struct Interface * readin_config(char *fname)
+{
+	if ((yyin = fopen(fname, "r")) == NULL)
+	{
+		flog(LOG_ERR, "can't open %s: %s", fname, strerror(errno));
+		return 0;
+	}
+
+	IfaceList = 0;
+	if (yyparse() != 0)
+	{
+		flog(LOG_ERR, "error parsing or activating the config file: %s", fname);
+		return 0;
+	}
+
+	fclose(yyin);
+	return IfaceList;
+}
+
+
