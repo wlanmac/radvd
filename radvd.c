@@ -95,7 +95,7 @@ void sighup_handler(int sig);
 void sigterm_handler(int sig);
 void sigint_handler(int sig);
 void sigusr1_handler(int sig);
-void timer_handler(int sock, void *data);
+void timer_handler(int sock, struct Interface * iface);
 void config_interface(struct Interface * IfaceList);
 void kickoff_adverts(int sock, struct Interface * IfaceList);
 void stop_adverts(int sock, struct Interface * IfaceList);
@@ -493,9 +493,8 @@ void main_loop(int sock, struct Interface * IfaceList)
 }
 
 void
-timer_handler(int sock, void *data)
+timer_handler(int sock, struct Interface * iface)
 {
-	struct Interface *iface = (struct Interface *) data;
 	double next;
 
 	dlog(LOG_DEBUG, 4, "timer_handler called for %s", iface->Name);
