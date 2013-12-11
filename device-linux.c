@@ -43,7 +43,7 @@ update_device_info(int sock, struct Interface *iface)
 	if (ioctl(sock, SIOCGIFMTU, &ifr) < 0) {
 		flog(LOG_ERR, "ioctl(SIOCGIFMTU) failed for %s: %s",
 			iface->Name, strerror(errno));
-		return (-1);
+		return -1;
 	}
 
 	iface->if_maxmtu = ifr.ifr_mtu;
@@ -52,7 +52,7 @@ update_device_info(int sock, struct Interface *iface)
 	if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0) {
 		flog(LOG_ERR, "ioctl(SIOCGIFHWADDR) failed for %s: %s",
 			iface->Name, strerror(errno));
-		return (-1);
+		return -1;
 	}
 
 	dlog(LOG_DEBUG, 3, "hardware type for %s is %s", iface->Name, hwstr(ifr.ifr_hwaddr.sa_family));
@@ -71,19 +71,22 @@ update_device_info(int sock, struct Interface *iface)
 			(unsigned char)ifr.ifr_hwaddr.sa_data[5]);
 		dlog(LOG_DEBUG, 3, "hardware address is %s", hwaddr);
 		break;
+
 #ifdef ARPHRD_FDDI
 	case ARPHRD_FDDI:
 		iface->if_hwaddr_len = 48;
 		iface->if_prefix_len = 64;
 		break;
-#endif /* ARPHDR_FDDI */
+#endif
+
 #ifdef ARPHRD_ARCNET
 	case ARPHRD_ARCNET:
 		iface->if_hwaddr_len = 8;
 		iface->if_prefix_len = -1;
 		iface->if_maxmtu = -1;
 		break;
-#endif /* ARPHDR_ARCNET */
+#endif
+
 	default:
 		iface->if_hwaddr_len = -1;
 		iface->if_prefix_len = -1;
@@ -91,11 +94,8 @@ update_device_info(int sock, struct Interface *iface)
 		break;
 	}
 
-	dlog(LOG_DEBUG, 3, "link layer token length for %s is %d", iface->Name,
-		iface->if_hwaddr_len);
-
-	dlog(LOG_DEBUG, 3, "prefix length for %s is %d", iface->Name,
-		iface->if_prefix_len);
+	dlog(LOG_DEBUG, 3, "link layer token length for %s is %d", iface->Name, iface->if_hwaddr_len);
+	dlog(LOG_DEBUG, 3, "prefix length for %s is %d", iface->Name, iface->if_prefix_len);
 
 	if (iface->if_hwaddr_len != -1) {
 		unsigned int if_hwaddr_len_bytes = (iface->if_hwaddr_len + 7) >> 3;
@@ -125,7 +125,7 @@ update_device_info(int sock, struct Interface *iface)
  		prefix = prefix->next;
 	}
 
-	return (0);
+	return 0;
 }
 
 /*
@@ -145,7 +145,7 @@ int setup_linklocal_addr(struct Interface *iface)
 	{
 		flog(LOG_ERR, "can't open %s: %s", PATH_PROC_NET_IF_INET6,
 			strerror(errno));
-		return (-1);
+		return -1;
 	}
 
 	while (fscanf(fp, "%32s %x %02x %02x %02x %15s\n",
@@ -174,7 +174,7 @@ int setup_linklocal_addr(struct Interface *iface)
 
 	flog(LOG_ERR, "no linklocal address configured for %s", iface->Name);
 	fclose(fp);
-	return (-1);
+	return -1;
 }
 
 int setup_allrouters_membership(int sock, struct Interface *iface)
@@ -194,7 +194,7 @@ int setup_allrouters_membership(int sock, struct Interface *iface)
 		if (errno != EADDRINUSE)
 		{
 			flog(LOG_ERR, "can't join ipv6-allrouters on %s", iface->Name);
-			return (-1);
+			return -1;
 		}
 	}
 
@@ -215,7 +215,7 @@ int check_allrouters_membership(int sock, struct Interface *iface)
 	{
 		flog(LOG_ERR, "can't open %s: %s", PATH_PROC_NET_IGMP6,
 			strerror(errno));
-		return (-1);
+		return -1;
 	}
 
 	str = fgets(buffer, 300, fp);
