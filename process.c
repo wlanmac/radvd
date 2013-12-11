@@ -31,6 +31,7 @@ process(int sock, struct Interface *ifacel, unsigned char *msg, int len,
 	struct Interface *iface;
 	struct icmp6_hdr *icmph;
 	char addr_str[INET6_ADDRSTRLEN];
+	char if_name[IF_NAMESIZE] = {""};
 
 	print_addr(&addr->sin6_addr, addr_str);
 
@@ -102,14 +103,17 @@ process(int sock, struct Interface *ifacel, unsigned char *msg, int len,
 	{
 		if (iface->if_index == pkt_info->ipi6_ifindex)
 		{
+			if_indextoname(pkt_info->ipi6_ifindex, if_name);
 			break;
 		}
 	}
 
 	if (iface == NULL)
 	{
-		dlog(LOG_DEBUG, 2, "received packet from unknown interface: %d",
-			pkt_info->ipi6_ifindex);
+		char name[IF_NAMESIZE];
+		if_indextoname(pkt_info->ipi6_ifindex, name);
+		dlog(LOG_DEBUG, 2, "received packet from unknown interface: %d %s",
+			pkt_info->ipi6_ifindex, name);
 		return;
 	}
 
@@ -131,12 +135,12 @@ process(int sock, struct Interface *ifacel, unsigned char *msg, int len,
 
 	if (icmph->icmp6_type == ND_ROUTER_SOLICIT)
 	{
-		dlog(LOG_DEBUG, 4, "received RS from %s", addr_str);
+		dlog(LOG_DEBUG, 4, "received RS from %s on %s", addr_str, if_name);
 		process_rs(sock, iface, msg, len, addr);
 	}
 	else if (icmph->icmp6_type == ND_ROUTER_ADVERT)
 	{
-		dlog(LOG_DEBUG, 4, "received RA from %s", addr_str);
+		dlog(LOG_DEBUG, 4, "received RA from %s on %s", addr_str, if_name);
 		process_ra(iface, msg, len, addr);
 	}
 }

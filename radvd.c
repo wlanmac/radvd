@@ -375,6 +375,7 @@ int sock = -1;
 		unlink(pidfile);
 	}
 
+	flog(LOG_INFO, "returning from radvd main");
 	return 0;
 }
 
@@ -411,7 +412,7 @@ void main_loop(int sock, struct Interface * IfaceList)
 	for (;;) {
 		struct Interface *next = NULL;
 		struct Interface *iface;
-		int timeout = -1;
+		int timeout = -1; /* negative timeout means poll waits forever until IO */
 		int rc;
 
 		if (IfaceList) {
@@ -427,7 +428,7 @@ void main_loop(int sock, struct Interface * IfaceList)
 			}
 		}
 
-		dlog(LOG_DEBUG, 5, "polling for %g seconds.", timeout/1000.0);
+		dlog(LOG_DEBUG, 5, "polling for %g seconds. Next iface is %s.", timeout/1000.0, next->Name);
 
 		rc = poll(fds, sizeof(fds)/sizeof(fds[0]), timeout);
 
