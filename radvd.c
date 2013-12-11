@@ -78,9 +78,9 @@ char usage_str[] =
 
 #endif
 
-char *conf_file = NULL;
 char *pidfile = NULL;
 char *pname;
+char *conf_file = NULL; /* TODO: this is referenced by gram.y */
 #ifdef HAVE_NETLINK
 int disablenetlink = 0;
 #endif
