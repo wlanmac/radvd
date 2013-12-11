@@ -416,6 +416,7 @@ void main_loop(int sock, struct Interface * IfaceList)
 		int rc;
 
 		if (IfaceList) {
+			/* TODO: This is a great place to use a min heap. */
 			timeout = next_time_msec(IfaceList);
 			next = IfaceList;
 			for (iface = IfaceList; iface; iface = iface->next) {

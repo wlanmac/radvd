@@ -98,7 +98,7 @@ process(int sock, struct Interface *ifacel, unsigned char *msg, int len,
 	dlog(LOG_DEBUG, 4, "if_index %u", pkt_info->ipi6_ifindex);
 
 	/* get iface by received if_index */
-
+	/* TODO: This is a great place to use a hash table */
 	for (iface = ifacel; iface; iface=iface->next)
 	{
 		if (iface->if_index == pkt_info->ipi6_ifindex)
