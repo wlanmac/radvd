@@ -25,30 +25,24 @@ check_device(int sock, struct Interface *iface)
 	strncpy(ifr.ifr_name, iface->Name, IFNAMSIZ-1);
 	ifr.ifr_name[IFNAMSIZ-1] = '\0';
 
-	if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0)
-	{
-		if (!iface->IgnoreIfMissing)
-			flog(LOG_ERR, "ioctl(SIOCGIFFLAGS) failed for %s: %s",
-				iface->Name, strerror(errno));
-		return (-1);
+	if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
+		flog(LOG_ERR, "ioctl(SIOCGIFFLAGS) failed for %s: %s",
+			iface->Name, strerror(errno));
+		return -1;
+	}
 	}
 
-	if (!(ifr.ifr_flags & IFF_UP))
-	{
-		if (!iface->IgnoreIfMissing)
-                	flog(LOG_ERR, "interface %s is not UP", iface->Name);
-		return (-1);
+	if (!(ifr.ifr_flags & IFF_UP)) {
+		flog(LOG_ERR, "interface %s is not UP", iface->Name);
+		return -1;
 	}
 
-	if (!(ifr.ifr_flags & IFF_RUNNING))
-	{
-		if (!iface->IgnoreIfMissing)
-                	flog(LOG_ERR, "interface %s is not RUNNING", iface->Name);
-		return (-1);
+	if (!(ifr.ifr_flags & IFF_RUNNING)) {
+		flog(LOG_ERR, "interface %s is not running", iface->Name);
+		return -1;
 	}
 
-	if (!iface->UnicastOnly && !(ifr.ifr_flags & IFF_MULTICAST))
-	{
+	if (!iface->UnicastOnly && !(ifr.ifr_flags & IFF_MULTICAST)) {
 		flog(LOG_INFO, "interface %s does not support multicast, forcing UnicastOnly", iface->Name);
 		iface->UnicastOnly = 1;
 	}
