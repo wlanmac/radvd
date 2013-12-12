@@ -1,3 +1,7 @@
+2013/12/12	Added make indent target for indenting the code lnux stype
+		cleaned up the code a bit
+		made sock and the interface list non-globals
+
 2013/11/20	Fixed attempt to get multiple values in an ioctl
 		improved logging of hardware type
 
