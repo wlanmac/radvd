@@ -41,8 +41,7 @@ struct privsep_command {
 };
 
 /* Privileged read loop */
-void
-privsep_read_loop(void)
+void privsep_read_loop(void)
 {
 	struct privsep_command cmd;
 	int ret;
@@ -52,8 +51,7 @@ privsep_read_loop(void)
 		if (ret <= 0) {
 			/* Error or EOF, give up */
 			if (ret < 0) {
-				flog(LOG_ERR, "Exiting, privsep_read_loop had readn error: %s",
-				     strerror(errno));
+				flog(LOG_ERR, "Exiting, privsep_read_loop had readn error: %s", strerror(errno));
 			} else {
 				flog(LOG_ERR, "Exiting, privsep_read_loop had readn return 0 bytes");
 			}
@@ -63,9 +61,9 @@ privsep_read_loop(void)
 			return;
 		}
 
-		cmd.iface[IFNAMSIZ-1] = '\0';
+		cmd.iface[IFNAMSIZ - 1] = '\0';
 
-		switch(cmd.type) {
+		switch (cmd.type) {
 
 		case SET_INTERFACE_LINKMTU:
 			if (cmd.val < MIN_AdvLinkMTU || cmd.val > MAX_AdvLinkMTU) {
@@ -102,7 +100,7 @@ privsep_read_loop(void)
 			ret = set_interface_var(cmd.iface, PROC_SYS_IP6_RETRANSTIMER_MS, "RetransTimer (ms)", cmd.val);
 			if (ret == 0)
 				break;
-			set_interface_var(cmd.iface, PROC_SYS_IP6_RETRANSTIMER, "RetransTimer", cmd.val / 1000 * USER_HZ); /* XXX user_hz */
+			set_interface_var(cmd.iface, PROC_SYS_IP6_RETRANSTIMER, "RetransTimer", cmd.val / 1000 * USER_HZ);	/* XXX user_hz */
 			break;
 
 		default:
@@ -113,8 +111,7 @@ privsep_read_loop(void)
 }
 
 /* Fork to create privileged process connected by a pipe */
-int
-privsep_init(void)
+int privsep_init(void)
 {
 	int pipefds[2];
 	pid_t pid;
@@ -164,8 +161,7 @@ privsep_init(void)
 }
 
 /* Interface calls for the unprivileged process */
-int
-privsep_interface_linkmtu(const char *iface, uint32_t mtu)
+int privsep_interface_linkmtu(const char *iface, uint32_t mtu)
 {
 	struct privsep_command cmd;
 	cmd.type = SET_INTERFACE_LINKMTU;
@@ -177,8 +173,7 @@ privsep_interface_linkmtu(const char *iface, uint32_t mtu)
 	return 0;
 }
 
-int
-privsep_interface_curhlim(const char *iface, uint32_t hlim)
+int privsep_interface_curhlim(const char *iface, uint32_t hlim)
 {
 	struct privsep_command cmd;
 	cmd.type = SET_INTERFACE_CURHLIM;
@@ -189,8 +184,7 @@ privsep_interface_curhlim(const char *iface, uint32_t hlim)
 	return 0;
 }
 
-int
-privsep_interface_reachtime(const char *iface, uint32_t rtime)
+int privsep_interface_reachtime(const char *iface, uint32_t rtime)
 {
 	struct privsep_command cmd;
 	cmd.type = SET_INTERFACE_REACHTIME;
@@ -201,8 +195,7 @@ privsep_interface_reachtime(const char *iface, uint32_t rtime)
 	return 0;
 }
 
-int
-privsep_interface_retranstimer(const char *iface, uint32_t rettimer)
+int privsep_interface_retranstimer(const char *iface, uint32_t rettimer)
 {
 	struct privsep_command cmd;
 	cmd.type = SET_INTERFACE_RETRANSTIMER;
