@@ -81,6 +81,9 @@ radvdump_SOURCES = \
 	$(COMMON_SRC) \
 	radvdump.c
 
+indent:
+	indent -linux -l180 *.c *.h
+
 man_MANS = \
 	radvd.8 \
 	radvd.conf.5 \
@@ -168,7 +171,6 @@ packages:
 	$(MAKE) sign
 	$(MAKE) verify
 	$(MAKE) html
-
 
 dist-hook:
 	rm -f $(distdir)/gram.c
