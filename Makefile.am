@@ -11,7 +11,7 @@
 #   may request it from <reubenhwk@gmail.com>.
 #
 
-AUTOMAKE_OPTIONS = 1.2 foreign
+AUTOMAKE_OPTIONS = 1.2 foreign subdir-objects
 
 DEFS = \
 	-DINET6=1 \
@@ -31,6 +31,18 @@ COMMON_SRC = \
 	recv.c \
 	socket.c \
 	util.c
+
+TUNTAP_SRC = \
+	tuntap.c \
+	tuntap.h
+
+TESTS = \
+	check-pid
+
+check_PROGRAMS = \
+	check-pid
+
+check_pid_SOURCES = $(TUNTAP_SRC) socket.c log.c radvd.h test/check-pid.c
 
 sbin_PROGRAMS = \
 	radvd \
