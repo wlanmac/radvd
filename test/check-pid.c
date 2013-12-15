@@ -49,19 +49,11 @@ void write_config(char const * dev, char const * mode)
 
 int main(int argc, char * argv[])
 {
-	int sock;
 	pid_t pid;
-	struct ifreq	ifr;
 	int fd;
 	char dev[IFNAMSIZ] = {""};
 	FILE * radvd_pid_file;
 	
-
-	sock = open_icmpv6_socket();
-	if (sock < 0) {
-		perror("open_icmpv6_socket failed");
-		exit(1);
-	}
 
 	unlink("radvd.conf");
 
@@ -72,38 +64,6 @@ int main(int argc, char * argv[])
 	}
 
 	write_config(dev, "a");
-
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
-
-#if 0
-	ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
-	ifr.ifr_hwaddr.sa_data[0] = 0;
-	ifr.ifr_hwaddr.sa_data[1] = 1;
-	ifr.ifr_hwaddr.sa_data[2] = 2;
-	ifr.ifr_hwaddr.sa_data[3] = 3;
-	ifr.ifr_hwaddr.sa_data[4] = 4;
-	ifr.ifr_hwaddr.sa_data[5] = 5;
-
-	if (ioctl(sock, SIOCSIFHWADDR, &ifr) < 0) {
-		perror("ioctl(SIOCSIFHWADDR) failed");
-		exit(1);
-	}
-#endif
-
-#if 1
-	if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
-		perror("ioctl(SIOCGIFFLAGS) failed");
-		exit(1);
-	}
-
-	ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
-
-	if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0) {
-		perror("ioctl(SIOCGIFFLAGS) failed");
-		exit(1);
-	}
-#endif
 
 	pid = fork();
 

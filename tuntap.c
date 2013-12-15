@@ -1,5 +1,6 @@
 
 
+#include "config.h"
 #include "tuntap.h"
 #include <string.h>
 #include <sys/socket.h>
@@ -14,6 +15,7 @@ int tun_alloc(char *dev) {
 
 	struct ifreq ifr;
 	int fd, err;
+	int sock;
 	char *clonedev = "/dev/net/tun";
 
 	/* Arguments taken by the function:
@@ -29,7 +31,6 @@ int tun_alloc(char *dev) {
 
 	 /* preparation of the struct ifr, of type "struct ifreq" */
 	 memset(&ifr, 0, sizeof(ifr));
-
 	 ifr.ifr_flags = IFF_TUN;	 /* IFF_TUN or IFF_TAP, plus maybe IFF_NO_PI */
 
 	 if (*dev) {
@@ -53,6 +54,28 @@ int tun_alloc(char *dev) {
 
 	/* this is the special file descriptor that the caller will use to talk
 	 * with the virtual interface */
+
+	sock = open_icmpv6_socket();
+	if (sock < 0) {
+		perror("open_icmpv6_socket failed");
+		exit(1);
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
+
+	if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
+		perror("ioctl(SIOCGIFFLAGS) failed");
+		exit(1);
+	}
+
+	ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
+
+	if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0) {
+		perror("ioctl(SIOCGIFFLAGS) failed");
+		exit(1);
+	}
+
 	return fd;
 }
 
