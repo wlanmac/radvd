@@ -276,13 +276,12 @@ int main(int argc, char *argv[])
 	if (check_ip6_forwarding()) {
 		flog(LOG_WARNING, "IPv6 forwarding seems to be disabled, but continuing anyway.");
 	}
-#ifdef USE_PRIVSEP
+
 	dlog(LOG_DEBUG, 3, "Initializing privsep");
 	if (privsep_init() < 0) {
 		perror("Failed to initialize privsep.");
 		exit(1);
 	}
-#endif
 
 	/* drop root privileges if requested. */
 	if (username) {
