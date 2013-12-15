@@ -322,16 +322,19 @@ int main(int argc, char *argv[])
 		}
 
 		daemon_pid_file_proc = get_pidfile;
+
 		if (daemon_pid_file_is_running() >= 0) {
 			flog(LOG_ERR, "radvd already running, terminating.");
 			daemon_retval_send(1);
 			exit(1);
 		}
+
 		if (daemon_pid_file_create()) {
 			flog(LOG_ERR, "Cannot create radvd PID file, terminating: %s", strerror(errno));
 			daemon_retval_send(2);
 			exit(1);
 		}
+
 		daemon_retval_send(0);
 	}
 
