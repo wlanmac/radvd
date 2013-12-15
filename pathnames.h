@@ -13,8 +13,7 @@
  *
  */
 
-#ifndef PATHNAMES_H
-#define PATHNAMES_H
+#pragma once
 
 #ifndef PATH_RADVD_CONF
 #define PATH_RADVD_CONF "/etc/radvd.conf"
@@ -44,4 +43,3 @@
 #define SYSCTL_IP6_FORWARDING CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_FORWARDING
 #endif
 
-#endif
