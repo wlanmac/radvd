@@ -32,9 +32,13 @@ COMMON_SRC = \
 	socket.c \
 	util.c
 
-TUNTAP_SRC = \
+TEST_SRC = \
 	tuntap.c \
-	tuntap.h
+	tuntap.h \
+	radvd_pid.h \
+	radvd_pid.c \
+	fork_radvd.h \
+	fork_radvd.c
 
 TESTS = \
 	check-pid
@@ -42,7 +46,7 @@ TESTS = \
 check_PROGRAMS = \
 	check-pid
 
-check_pid_SOURCES = $(TUNTAP_SRC) socket.c log.c radvd.h test/check-pid.c
+check_pid_SOURCES = $(TEST_SRC) socket.c log.c radvd.h test/check-pid.c
 
 sbin_PROGRAMS = \
 	radvd \

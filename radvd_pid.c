@@ -3,6 +3,7 @@
 #include "radvd_pid.h"
 #include "pathnames.h"
 
+#include <stdio.h>
 
 pid_t radvd_pid()
 {
