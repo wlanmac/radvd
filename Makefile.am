@@ -41,12 +41,15 @@ TEST_SRC = \
 	fork_radvd.c
 
 TESTS = \
-	check-pid
+	check-pid \
+	check-pid2
 
 check_PROGRAMS = \
-	check-pid
+	check-pid \
+	check-pid2
 
 check_pid_SOURCES = $(TEST_SRC) socket.c log.c radvd.h test/check-pid.c
+check_pid2_SOURCES = $(TEST_SRC) socket.c log.c radvd.h test/check-pid2.c
 
 sbin_PROGRAMS = \
 	radvd \

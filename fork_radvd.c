@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 pid_t fork_radvd(char * arg, ...)
 {
@@ -33,11 +35,12 @@ pid_t fork_radvd(char * arg, ...)
 			exit(1);
 		}
 		execv("./radvd", argv);
+	} else {
+		pid_t radvd;
+		wait(0);
+		usleep(25000);
+		radvd = radvd_pid();
 	}
-
-	usleep(25000);
-
-	pid = radvd_pid();
 
 	return pid;
 }
